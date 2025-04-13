@@ -1,14 +1,15 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from werkzeug.utils import secure_filename
+from PIL import Image
+import pillow_heif
 
 main = Blueprint("main", __name__)
 
-# Allowed image extensions (including HEIC)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'heic'}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic"}
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @main.route("/")
 def index():
@@ -16,11 +17,7 @@ def index():
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
-    images = [
-        f for f in os.listdir(upload_folder)
-        if f.lower().endswith(tuple(ALLOWED_EXTENSIONS))
-    ]
-
+    images = os.listdir(upload_folder)
     return render_template("gallery.html", images=images)
 
 @main.route("/upload", methods=["GET", "POST"])
@@ -37,12 +34,28 @@ def upload():
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-            file.save(filepath)
+            file_ext = filename.rsplit('.', 1)[1].lower()
+            save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+
+            # Convert HEIC to JPEG
+            if file_ext == "heic":
+                try:
+                    heif_file = pillow_heif.read_heif(file.stream)
+                    image = Image.frombytes(
+                        heif_file.mode, heif_file.size, heif_file.data, "raw"
+                    )
+                    filename = filename.rsplit('.', 1)[0] + ".jpg"
+                    save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+                    image.save(save_path, format="JPEG")
+                    flash("HEIC image converted to JPEG and uploaded successfully.")
+                except Exception as e:
+                    flash(f"Failed to convert HEIC file: {e}")
+                    return redirect(request.url)
+            else:
+                file.save(save_path)
+                flash("Image uploaded successfully.")
+
             return redirect(url_for("main.index"))
-        else:
-            flash("Invalid file type.")
-            return redirect(request.url)
 
     return render_template("upload.html")
 

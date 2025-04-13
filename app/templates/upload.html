@@ -1,12 +1,26 @@
 <!doctype html>
 <html>
-<head><title>Upload Photo</title></head>
+<head>
+    <title>Upload Photo</title>
+</head>
 <body>
-    <h1>Upload Photo</h1>
-    <form method="post" enctype="multipart/form-data">
-        <input type="file" name="photo">
-        <input type="submit" value="Upload">
+    <h1>Upload New Photo(s)</h1>
+    <a href="{{ url_for('main.index') }}">← Back to Gallery</a>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <label for="photos">Select one or more images to upload:</label><br><br>
+        <input type="file" id="photos" name="photos" multiple><br><br>
+        <button type="submit">Upload Photo(s)</button>
     </form>
-    <a href="{{ url_for('main.index') }}">Back to Gallery</a>
 </body>
 </html>

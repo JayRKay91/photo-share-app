@@ -23,39 +23,45 @@ def index():
 @main.route("/upload", methods=["GET", "POST"])
 def upload():
     if request.method == "POST":
-        if "photo" not in request.files:
+        if "photos" not in request.files:
             flash("No file part")
             return redirect(request.url)
 
-        file = request.files["photo"]
-        if file.filename == "":
-            flash("No selected file")
+        files = request.files.getlist("photos")
+        if not files or files[0].filename == "":
+            flash("No selected files")
             return redirect(request.url)
 
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_ext = filename.rsplit('.', 1)[1].lower()
-            save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+        success_count = 0
 
-            # Convert HEIC to JPEG
-            if file_ext == "heic":
-                try:
-                    heif_file = pillow_heif.read_heif(file.stream)
-                    image = Image.frombytes(
-                        heif_file.mode, heif_file.size, heif_file.data, "raw"
-                    )
-                    filename = filename.rsplit('.', 1)[0] + ".jpg"
-                    save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-                    image.save(save_path, format="JPEG")
-                    flash("HEIC image converted to JPEG and uploaded successfully.")
-                except Exception as e:
-                    flash(f"Failed to convert HEIC file: {e}")
-                    return redirect(request.url)
-            else:
-                file.save(save_path)
-                flash("Image uploaded successfully.")
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file_ext = filename.rsplit('.', 1)[1].lower()
+                save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
 
-            return redirect(url_for("main.index"))
+                if file_ext == "heic":
+                    try:
+                        heif_file = pillow_heif.read_heif(file.stream)
+                        image = Image.frombytes(
+                            heif_file.mode, heif_file.size, heif_file.data, "raw"
+                        )
+                        filename = filename.rsplit('.', 1)[0] + ".jpg"
+                        save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+                        image.save(save_path, format="JPEG")
+                        success_count += 1
+                    except Exception as e:
+                        flash(f"Failed to convert {file.filename}: {e}")
+                        continue
+                else:
+                    file.save(save_path)
+                    success_count += 1
+
+        if success_count:
+            flash(f"{success_count} file(s) uploaded successfully!")
+        else:
+            flash("No valid images were uploaded.")
+        return redirect(url_for("main.index"))
 
     return render_template("upload.html")
 

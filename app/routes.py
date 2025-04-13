@@ -1,6 +1,6 @@
 import os
 import json
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from werkzeug.utils import secure_filename
 from PIL import Image
 import pillow_heif
@@ -30,7 +30,6 @@ def save_json(data, file_path):
 def index():
     upload_folder = current_app.config["UPLOAD_FOLDER"]
 
-    # ✅ Ensure uploads folder exists
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
@@ -156,3 +155,9 @@ def update_description(filename):
 
     save_json(descriptions, descriptions_path)
     return redirect(url_for("main.index"))
+
+
+@main.route("/download/<filename>")
+def download_image(filename):
+    upload_folder = current_app.config["UPLOAD_FOLDER"]
+    return send_from_directory(upload_folder, filename, as_attachment=True)

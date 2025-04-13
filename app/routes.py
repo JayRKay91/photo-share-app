@@ -17,8 +17,17 @@ def index():
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
-    images = os.listdir(upload_folder)
-    return render_template("gallery.html", images=images)
+    # Get list of image files and sort by modification time (newest first)
+    files = [
+        f for f in os.listdir(upload_folder)
+        if os.path.isfile(os.path.join(upload_folder, f))
+    ]
+    files.sort(
+        key=lambda x: os.path.getmtime(os.path.join(upload_folder, x)),
+        reverse=True
+    )
+
+    return render_template("gallery.html", images=files)
 
 @main.route("/upload", methods=["GET", "POST"])
 def upload():

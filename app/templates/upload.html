@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head><title>Upload Photo</title></head>
+<body>
+    <h1>Upload Photo</h1>
+    <form method="post" enctype="multipart/form-data">
+        <input type="file" name="photo">
+        <input type="submit" value="Upload">
+    </form>
+    <a href="{{ url_for('main.index') }}">Back to Gallery</a>
+</body>
+</html>

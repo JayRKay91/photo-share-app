@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head><title>Gallery</title></head>
+<body>
+    <h1>Photo Gallery</h1>
+    <a href="{{ url_for('main.upload') }}">Upload New Photo</a>
+    <ul>
+        {% for image in images %}
+            <li>
+                <img src="{{ url_for('static', filename='uploads/' + image) }}" width="300">
+            </li>
+        {% else %}
+            <li>No photos yet. Be the first to upload one!</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

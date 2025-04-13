@@ -1,21 +1,16 @@
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, current_app
-from werkzeug.utils import secure_filename
+from flask import Blueprint, render_template, current_app
 
 main = Blueprint("main", __name__)
 
 @main.route("/")
 def index():
-    images = os.listdir(current_app.config["UPLOAD_FOLDER"])
-    return render_template("gallery.html", images=images)
+    # Ensure upload folder exists
+    uploads_path = current_app.config["UPLOAD_FOLDER"]
+    os.makedirs(uploads_path, exist_ok=True)
 
-@main.route("/upload", methods=["GET", "POST"])
-def upload():
-    if request.method == "POST":
-        file = request.files["photo"]
-        if file:
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-            file.save(file_path)
-            return redirect(url_for("main.index"))
-    return render_template("upload.html")
+    # Get list of image filenames
+    images = os.listdir(uploads_path)
+    images = [f for f in images if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"))]
+
+    return render_template("gallery.html", images=images)

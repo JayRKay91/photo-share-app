@@ -1,52 +1,60 @@
 <!doctype html>
 <html>
 <head>
-    <title>Gallery</title>
+    <title>Photo Gallery</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
+            margin: 20px;
+            background: #f9f9f9;
+            text-align: center;
         }
 
         h1 {
-            text-align: center;
+            font-size: 2em;
         }
 
-        .flashes {
-            background-color: #ffefc1;
-            border: 1px solid #e0c36d;
+        .flash {
+            background: #ffeeba;
+            border: 1px solid #f5c6cb;
             padding: 10px;
-            list-style: none;
-            border-radius: 5px;
-            margin-bottom: 20px;
+            margin: 10px auto;
+            width: 80%;
         }
 
-        .gallery-grid {
+        .gallery {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
+            justify-items: center;
+            margin-top: 20px;
         }
 
-        .gallery-item {
-            border: 1px solid #ccc;
+        .image-card {
+            background: white;
+            padding: 15px;
+            border: 1px solid #ddd;
             border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            background-color: #fafafa;
-            box-shadow: 1px 1px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 300px;
         }
 
-        .gallery-item img {
-            max-width: 100%;
+        .image-card img {
+            width: 100%;
             height: auto;
-            border-radius: 5px;
+            border-radius: 4px;
         }
 
-        .gallery-item button,
-        .gallery-item a button {
-            margin: 5px;
+        .actions {
+            margin-top: 10px;
+        }
+
+        .actions form {
+            display: inline;
+            margin: 2px;
+        }
+
+        .actions button {
             padding: 6px 12px;
             font-size: 14px;
             border: none;
@@ -54,23 +62,46 @@
             cursor: pointer;
         }
 
-        .gallery-item button[type="submit"] {
-            background-color: #d9534f;
+        .download {
+            background-color: #17a2b8;
             color: white;
         }
 
-        .gallery-item a button {
-            background-color: #5bc0de;
+        .delete {
+            background-color: #dc3545;
             color: white;
         }
 
-        a {
-            text-decoration: none;
+        .description-form {
+            margin-top: 10px;
         }
 
-        .top-link {
+        .description-form textarea {
+            width: 100%;
+            height: 50px;
+            margin-bottom: 5px;
+            resize: vertical;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .description-form button {
+            background-color: #28a745;
+            color: white;
+            padding: 5px 10px;
+        }
+
+        .upload-link {
             display: block;
-            margin-bottom: 20px;
+            margin: 15px 0;
+            font-size: 16px;
+            text-decoration: none;
+            color: #6c3483;
+        }
+
+        .upload-link:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -79,37 +110,38 @@
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
-        <ul class="flashes">
+        <div class="flash">
           {% for message in messages %}
-            <li>{{ message }}</li>
+            <p>{{ message }}</p>
           {% endfor %}
-        </ul>
+        </div>
       {% endif %}
     {% endwith %}
 
-    <a class="top-link" href="{{ url_for('main.upload') }}">➕ Upload New Photo(s)</a>
+    <a class="upload-link" href="{{ url_for('main.upload') }}">➕ Upload New Photo(s)</a>
 
-    {% if images %}
-        <div class="gallery-grid">
-            {% for image in images %}
-                <div class="gallery-item">
-                    <img src="{{ url_for('static', filename='uploads/' + image) }}" alt="{{ image }}">
-
-                    <!-- Download button -->
-                    <a href="{{ url_for('static', filename='uploads/' + image) }}" download="{{ image }}">
-                        <button type="button">⬇️ Download</button>
+    <div class="gallery">
+        {% for image in images %}
+            <div class="image-card">
+                <img src="{{ url_for('static', filename='uploads/' + image) }}" alt="{{ image }}">
+                
+                <div class="actions">
+                    <a href="{{ url_for('static', filename='uploads/' + image) }}" download>
+                        <button class="download">⬇️ Download</button>
                     </a>
-
-                    <!-- Delete button -->
-                    <form action="{{ url_for('main.delete_image', filename=image) }}" method="POST"
-                          onsubmit="return confirm('Are you sure you want to delete this image?');">
-                        <button type="submit">🗑️ Delete</button>
+                    <form action="{{ url_for('main.delete_image', filename=image) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this image?');">
+                        <button type="submit" class="delete">🗑️ Delete</button>
                     </form>
                 </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p>No photos yet. Be the first to upload one!</p>
-    {% endif %}
+
+                <form class="description-form" action="{{ url_for('main.update_description', filename=image) }}" method="POST">
+                    <textarea name="description" placeholder="Add a description...">{{ descriptions.get(image, '') }}</textarea>
+                    <button type="submit">💾 Save</button>
+                </form>
+            </div>
+        {% else %}
+            <p>No photos yet. Be the first to upload one!</p>
+        {% endfor %}
+    </div>
 </body>
 </html>

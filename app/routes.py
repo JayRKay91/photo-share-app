@@ -29,6 +29,11 @@ def save_json(data, file_path):
 @main.route("/")
 def index():
     upload_folder = current_app.config["UPLOAD_FOLDER"]
+
+    # ✅ Ensure uploads folder exists
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+
     descriptions_path = os.path.join("app", "descriptions.json")
     albums_path = os.path.join("app", "albums.json")
 
@@ -42,7 +47,6 @@ def index():
         file_info["album"] = albums.get(filename, "")
         images.append(file_info)
 
-    # Sort newest first (based on file modified time)
     images.sort(key=lambda img: os.path.getmtime(os.path.join(upload_folder, img["filename"])), reverse=True)
 
     return render_template("gallery.html", images=images, descriptions=descriptions, albums=albums)

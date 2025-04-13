@@ -5,7 +5,7 @@
 </head>
 <body>
     <h1>Upload New Photo(s)</h1>
-    <a href="{{ url_for('main.index') }}">← Back to Gallery</a>
+    <a href="{{ url_for('main.index') }}">&larr; Back to Gallery</a>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -20,6 +20,18 @@
     <form method="POST" enctype="multipart/form-data">
         <label for="photos">Select one or more images to upload:</label><br><br>
         <input type="file" id="photos" name="photos" multiple><br><br>
+
+        <label for="album">Choose an album:</label><br>
+        <select name="album" id="album">
+            <option value="">-- No Album --</option>
+            {% for album in albums %}
+                <option value="{{ album }}">{{ album }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <label for="new_album">Or create a new album:</label><br>
+        <input type="text" id="new_album" name="new_album" placeholder="New album name"><br><br>
+
         <button type="submit">Upload Photo(s)</button>
     </form>
 </body>

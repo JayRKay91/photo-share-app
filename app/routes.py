@@ -4,160 +4,175 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from werkzeug.utils import secure_filename
 from PIL import Image
 import pillow_heif
+from moviepy.editor import VideoFileClip
 
 main = Blueprint("main", __name__)
 
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic"}
-
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "mp4", "mov", "webm"}
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def is_video(filename):
+    return filename.lower().endswith((".mp4", ".mov", ".webm"))
 
-def load_json(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            return json.load(f)
-    return {}
-
-
-def save_json(data, file_path):
-    with open(file_path, "w") as f:
-        json.dump(data, f, indent=2)
-
+def generate_video_thumbnail(video_path, thumb_path):
+    try:
+        clip = VideoFileClip(video_path)
+        frame = clip.get_frame(1)  # Grab frame at 1 second
+        image = Image.fromarray(frame)
+        image.save(thumb_path, "JPEG")
+        clip.close()
+    except Exception as e:
+        print(f"Error generating thumbnail: {e}")
 
 @main.route("/")
 def index():
     upload_folder = current_app.config["UPLOAD_FOLDER"]
+    thumb_folder = os.path.join(current_app.static_folder, "thumbnails")
 
-    if not os.path.exists(upload_folder):
-        os.makedirs(upload_folder)
+    os.makedirs(upload_folder, exist_ok=True)
+    os.makedirs(thumb_folder, exist_ok=True)
 
-    descriptions_path = os.path.join("app", "descriptions.json")
-    albums_path = os.path.join("app", "albums.json")
+    # Load metadata
+    def load_json(path, default={}):
+        if not os.path.exists(path):
+            with open(path, "w") as f:
+                json.dump(default, f)
+        with open(path, "r") as f:
+            return json.load(f)
 
-    descriptions = load_json(descriptions_path)
-    albums = load_json(albums_path)
+    descriptions = load_json(os.path.join(current_app.root_path, "descriptions.json"))
+    albums = load_json(os.path.join(current_app.root_path, "albums.json"))
+
+    selected_album = request.args.get("album")
+    all_files = os.listdir(upload_folder)
+
+    if selected_album and selected_album in albums:
+        files = albums[selected_album]
+    else:
+        files = all_files
+
+    files = sorted(files, key=lambda x: os.path.getmtime(os.path.join(upload_folder, x)), reverse=True)
 
     images = []
-    for filename in os.listdir(upload_folder):
-        file_info = {"filename": filename}
-        file_info["description"] = descriptions.get(filename, "")
-        file_info["album"] = albums.get(filename, "")
-        images.append(file_info)
+    for f in files:
+        file_type = "video" if is_video(f) else "image"
+        thumb_name = f"{f}.jpg"
+        thumb_path = os.path.join("thumbnails", thumb_name)
 
-    images.sort(key=lambda img: os.path.getmtime(os.path.join(upload_folder, img["filename"])), reverse=True)
+        if file_type == "video":
+            full_thumb_path = os.path.join(thumb_folder, thumb_name)
+            if not os.path.exists(full_thumb_path):
+                generate_video_thumbnail(os.path.join(upload_folder, f), full_thumb_path)
 
-    return render_template("gallery.html", images=images, descriptions=descriptions, albums=albums)
+        images.append({
+            "filename": f,
+            "type": file_type,
+            "thumb": thumb_path,
+            "description": descriptions.get(f, "")
+        })
 
+    return render_template("gallery.html", images=images, albums=albums)
 
 @main.route("/upload", methods=["GET", "POST"])
 def upload():
-    descriptions_path = os.path.join("app", "descriptions.json")
-    albums_path = os.path.join("app", "albums.json")
-
-    descriptions = load_json(descriptions_path)
-    albums = load_json(albums_path)
-
-    upload_folder = current_app.config["UPLOAD_FOLDER"]
-
     if request.method == "POST":
         if "photos" not in request.files:
             flash("No file part")
             return redirect(request.url)
 
         files = request.files.getlist("photos")
-        selected_album = request.form.get("album")
-        new_album = request.form.get("new_album")
+        album = request.form.get("album", "Default")
+        upload_folder = current_app.config["UPLOAD_FOLDER"]
+        albums_path = os.path.join(current_app.root_path, "albums.json")
+        os.makedirs(upload_folder, exist_ok=True)
 
-        if new_album:
-            album_name = new_album.strip()
-        else:
-            album_name = selected_album.strip() if selected_album else ""
+        # Load albums
+        albums = {}
+        if os.path.exists(albums_path):
+            with open(albums_path, "r") as f:
+                albums = json.load(f)
 
-        upload_count = 0
+        uploaded_filenames = []
 
         for file in files:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file_ext = filename.rsplit('.', 1)[1].lower()
-                save_path = os.path.join(upload_folder, filename)
+            if file.filename == "" or not allowed_file(file.filename):
+                continue
 
-                if file_ext == "heic":
-                    try:
-                        heif_file = pillow_heif.read_heif(file.stream)
-                        image = Image.frombytes(
-                            heif_file.mode, heif_file.size, heif_file.data, "raw"
-                        )
-                        filename = filename.rsplit('.', 1)[0] + ".jpg"
-                        save_path = os.path.join(upload_folder, filename)
-                        image.save(save_path, format="JPEG")
-                        flash(f"{filename} converted from HEIC and uploaded.")
-                    except Exception as e:
-                        flash(f"Failed to convert HEIC file: {e}")
-                        continue
-                else:
-                    file.save(save_path)
-                    flash(f"{filename} uploaded successfully.")
+            filename = secure_filename(file.filename)
+            ext = filename.rsplit(".", 1)[1].lower()
+            save_path = os.path.join(upload_folder, filename)
 
-                if album_name:
-                    albums[filename] = album_name
+            if ext == "heic":
+                try:
+                    heif = pillow_heif.read_heif(file.stream)
+                    img = Image.frombytes(heif.mode, heif.size, heif.data, "raw")
+                    filename = filename.rsplit('.', 1)[0] + ".jpg"
+                    save_path = os.path.join(upload_folder, filename)
+                    img.save(save_path, format="JPEG")
+                    flash(f"{filename} (converted from HEIC) uploaded.")
+                except Exception as e:
+                    flash(f"Failed to convert HEIC file: {e}")
+                    continue
 
-                upload_count += 1
+            elif ext == "mov":
+                try:
+                    temp_path = os.path.join(upload_folder, filename)
+                    file.save(temp_path)
+                    filename = filename.rsplit('.', 1)[0] + ".mp4"
+                    save_path = os.path.join(upload_folder, filename)
+                    clip = VideoFileClip(temp_path)
+                    clip.write_videofile(save_path, codec="libx264", audio_codec="aac")
+                    os.remove(temp_path)
+                    clip.close()
+                    flash(f"{filename} (converted from MOV) uploaded.")
+                except Exception as e:
+                    flash(f"Failed to convert MOV file: {e}")
+                    continue
 
-        save_json(descriptions, descriptions_path)
-        save_json(albums, albums_path)
+            else:
+                file.save(save_path)
+                flash(f"{filename} uploaded.")
 
-        flash(f"{upload_count} file(s) uploaded successfully!")
+            uploaded_filenames.append(filename)
+
+        # Update album
+        if album not in albums:
+            albums[album] = []
+        albums[album].extend(uploaded_filenames)
+
+        with open(albums_path, "w") as f:
+            json.dump(albums, f)
+
         return redirect(url_for("main.index"))
 
-    existing_albums = list(set(albums.values()))
-    return render_template("upload.html", albums=existing_albums)
-
-
-@main.route("/delete/<filename>", methods=["POST"])
-def delete_image(filename):
-    upload_folder = current_app.config["UPLOAD_FOLDER"]
-    file_path = os.path.join(upload_folder, filename)
-
-    descriptions_path = os.path.join("app", "descriptions.json")
-    albums_path = os.path.join("app", "albums.json")
-
-    descriptions = load_json(descriptions_path)
-    albums = load_json(albums_path)
-
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        flash(f"{filename} deleted successfully.")
-        descriptions.pop(filename, None)
-        albums.pop(filename, None)
-    else:
-        flash(f"{filename} not found.")
-
-    save_json(descriptions, descriptions_path)
-    save_json(albums, albums_path)
-
-    return redirect(url_for("main.index"))
-
-
-@main.route("/description/<filename>", methods=["POST"])
-def update_description(filename):
-    descriptions_path = os.path.join("app", "descriptions.json")
-    descriptions = load_json(descriptions_path)
-
-    description = request.form.get("description", "").strip()
-    if description:
-        descriptions[filename] = description
-        flash(f"Description for {filename} updated.")
-    else:
-        descriptions.pop(filename, None)
-        flash(f"Description for {filename} removed.")
-
-    save_json(descriptions, descriptions_path)
-    return redirect(url_for("main.index"))
-
+    return render_template("upload.html")
 
 @main.route("/download/<filename>")
 def download_image(filename):
     upload_folder = current_app.config["UPLOAD_FOLDER"]
     return send_from_directory(upload_folder, filename, as_attachment=True)
+
+@main.route("/delete/<filename>", methods=["POST"])
+def delete_image(filename):
+    upload_folder = current_app.config["UPLOAD_FOLDER"]
+    file_path = os.path.join(upload_folder, filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        flash(f"{filename} deleted.")
+    return redirect(url_for("main.index"))
+
+@main.route("/description/<filename>", methods=["POST"])
+def update_description(filename):
+    new_description = request.form.get("description", "")
+    path = os.path.join(current_app.root_path, "descriptions.json")
+    descriptions = {}
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            descriptions = json.load(f)
+    descriptions[filename] = new_description
+    with open(path, "w") as f:
+        json.dump(descriptions, f)
+    flash(f"Description updated for {filename}")
+    return redirect(url_for("main.index"))

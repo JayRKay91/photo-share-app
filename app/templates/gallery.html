@@ -21,6 +21,7 @@
         .action-buttons {
             margin-top: 10px;
         }
+
         /* Style for file name display */
         .filename {
             max-width: 250px;         /* Limit width */
@@ -30,6 +31,7 @@
             margin: 5px auto;
             font-size: 0.9em;         /* Slightly smaller font */
         }
+
         /* Preview overlay styling */
         #preview {
             display: none;
@@ -45,20 +47,29 @@
             align-items: center;
             padding: 20px;
             box-sizing: border-box;
+            cursor: pointer;  /* So user knows they can click the background */
         }
+
+        /* Inner box to hold the content and stop clicks from closing it */
+        .preview-box {
+            position: relative;
+            cursor: auto; /* Override the #preview cursor for content area */
+        }
+
         /* Close button styling */
-        #preview .close-btn {
+        .close-btn {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 10px;
+            right: 10px;
             background-color: #fff;
             border: none;
             font-size: 18px;
-            padding: 10px;
+            padding: 8px;
             cursor: pointer;
             border-radius: 4px;
         }
-        /* New class to constrain preview image/video size */
+
+        /* Constrain enlarged image/video size */
         .preview-content {
             max-width: 90vw;
             max-height: 90vh;
@@ -67,33 +78,6 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
     </style>
-    <script>
-        function openPreview(src, isVideo = false) {
-            const preview = document.getElementById('preview');
-            let content;
-            if (isVideo) {
-                content = `<video controls autoplay src="${src}" class="preview-content"></video>`;
-            } else {
-                content = `<img src="${src}" class="preview-content" />`;
-            }
-            content += `<button class="close-btn" onclick="closePreview()">Close</button>`;
-            preview.innerHTML = content;
-            preview.style.display = 'flex';
-        }
-
-        function closePreview() {
-            const preview = document.getElementById('preview');
-            preview.innerHTML = '';
-            preview.style.display = 'none';
-        }
-
-        // Add keyboard listener for Escape key to close preview
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closePreview();
-            }
-        });
-    </script>
 </head>
 <body>
     <h1>Photo Gallery</h1>
@@ -113,9 +97,13 @@
         {% for image in images %}
         <div class="gallery-item">
             {% if image.type == 'video' %}
-                <img src="{{ url_for('static', filename=image.thumb) }}" onclick="openPreview('{{ url_for('static', filename='uploads/' + image.filename) }}', true)" alt="{{ image.filename }}">
+                <img src="{{ url_for('static', filename=image.thumb) }}" 
+                     onclick="openPreview('{{ url_for('static', filename='uploads/' + image.filename) }}', true)" 
+                     alt="{{ image.filename }}">
             {% else %}
-                <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" onclick="openPreview(this.src)" alt="{{ image.filename }}">
+                <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" 
+                     onclick="openPreview(this.src)" 
+                     alt="{{ image.filename }}">
             {% endif %}
             <p class="filename">{{ image.filename }}</p>
             {% if image.album %}<p>📁 Album: {{ image.album }}</p>{% endif %}
@@ -128,7 +116,10 @@
                 <a href="{{ url_for('main.download_image', filename=image.filename) }}">
                     <button>⬇️ Download</button>
                 </a>
-                <form action="{{ url_for('main.delete_image', filename=image.filename) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this image?');" style="display:inline;">
+                <form action="{{ url_for('main.delete_image', filename=image.filename) }}" 
+                      method="POST" 
+                      onsubmit="return confirm('Are you sure you want to delete this image?');" 
+                      style="display:inline;">
                     <button type="submit">🗑️ Delete</button>
                 </form>
             </div>
@@ -138,6 +129,64 @@
         {% endfor %}
     </div>
 
-    <div id="preview"></div>
+    <!-- The preview overlay (click to close if user clicks outside content) -->
+    <div id="preview" onclick="closePreview()"></div>
+
+    <script>
+        function openPreview(src, isVideo = false) {
+            const preview = document.getElementById('preview');
+            // Construct an inner container preventing clicks from closing it
+            const previewBox = document.createElement('div');
+            previewBox.className = 'preview-box';
+            previewBox.onclick = function(e) {
+                // Prevent clicks inside the preview from closing it
+                e.stopPropagation();
+            };
+
+            // Create the appropriate tag (video or image)
+            let content;
+            if (isVideo) {
+                content = document.createElement('video');
+                content.src = src;
+                content.controls = true;
+                content.autoplay = true;
+                content.className = 'preview-content';
+            } else {
+                content = document.createElement('img');
+                content.src = src;
+                content.className = 'preview-content';
+            }
+
+            // Close button
+            const closeButton = document.createElement('button');
+            closeButton.className = 'close-btn';
+            closeButton.textContent = 'X';
+            closeButton.onclick = function() {
+                closePreview();
+            };
+
+            // Add everything to previewBox
+            previewBox.appendChild(content);
+            previewBox.appendChild(closeButton);
+
+            // Clear existing preview children, then add the new previewBox
+            preview.innerHTML = '';
+            preview.appendChild(previewBox);
+            preview.style.display = 'flex'; // Show the overlay
+        }
+
+        function closePreview() {
+            const preview = document.getElementById('preview');
+            preview.innerHTML = '';
+            preview.style.display = 'none';
+        }
+
+        // Add keyboard listener for Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closePreview();
+            }
+        });
+    </script>
 </body>
 </html>

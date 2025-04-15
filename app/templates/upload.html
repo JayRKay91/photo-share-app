@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-    <title>Upload Photo</title>
+    <title>Upload Media</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -54,7 +54,7 @@
     </style>
 </head>
 <body>
-    <h1>Upload New Photo(s)</h1>
+    <h1>Upload New Photo(s) or Video(s)</h1>
     <a href="{{ url_for('main.index') }}">← Back to Gallery</a>
 
     {% with messages = get_flashed_messages() %}
@@ -67,22 +67,35 @@
       {% endif %}
     {% endwith %}
 
-    <form method="POST" enctype="multipart/form-data">
-        <label for="photos">Select one or more images to upload:</label>
+    <form id="uploadForm" method="POST" enctype="multipart/form-data">
+        <label for="photos">Select one or more photos or videos to upload:</label>
         <input type="file" id="photos" name="photos" multiple required>
 
         <label for="album">Choose an album:</label>
         <select name="album" id="album">
             <option value="">-- No Album --</option>
-            {% for album in albums %}
-                <option value="{{ album }}">{{ album }}</option>
-            {% endfor %}
+            {% if albums is defined %}
+                {% for album in albums %}
+                    <option value="{{ album }}">{{ album }}</option>
+                {% endfor %}
+            {% endif %}
         </select>
 
         <label for="new_album">Or create a new album:</label>
         <input type="text" id="new_album" name="new_album" placeholder="Enter new album name">
 
-        <button type="submit">Upload Photo(s)</button>
+        <button type="submit">Upload Photo(s)/Video(s)</button>
     </form>
+
+    <script>
+        // On form submission, if a new album name is provided,
+        // it replaces the value of the album select field.
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            const newAlbum = document.getElementById('new_album').value.trim();
+            if (newAlbum) {
+                document.getElementById('album').value = newAlbum;
+            }
+        });
+    </script>
 </body>
 </html>

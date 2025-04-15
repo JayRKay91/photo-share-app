@@ -21,11 +21,41 @@
         .action-buttons {
             margin-top: 10px;
         }
+        /* Preview overlay styling */
+        #preview {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            z-index: 9999;
+            text-align: center;
+            padding-top: 50px;
+        }
+        /* Close button styling */
+        #preview .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #fff;
+            border: none;
+            font-size: 18px;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
     </style>
     <script>
         function openPreview(src, isVideo = false) {
             const preview = document.getElementById('preview');
-            const content = isVideo ? `<video controls autoplay src="${src}" style="max-width: 100%; height: auto;"></video>` : `<img src="${src}" style="max-width: 100%; height: auto;" />`;
+            // Generate media content dynamically based on type.
+            let content = isVideo 
+                ? `<video controls autoplay src="${src}" style="max-width: 100%; height: auto;"></video>` 
+                : `<img src="${src}" style="max-width: 100%; height: auto;" />`;
+            // Append a dedicated close button.
+            content += `<button class="close-btn" onclick="closePreview()">Close</button>`;
             preview.innerHTML = content;
             preview.style.display = 'block';
         }
@@ -35,6 +65,13 @@
             preview.innerHTML = '';
             preview.style.display = 'none';
         }
+
+        // Add keyboard listener for the Escape key.
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closePreview();
+            }
+        });
     </script>
 </head>
 <body>
@@ -80,6 +117,7 @@
         {% endfor %}
     </div>
 
-    <div id="preview" onclick="closePreview()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.8); z-index:9999; text-align:center; padding-top:50px;"></div>
+    <!-- Preview overlay (clicking outside the media won't close it now) -->
+    <div id="preview"></div>
 </body>
 </html>

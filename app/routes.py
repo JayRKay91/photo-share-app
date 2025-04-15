@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from werkzeug.utils import secure_filename
 from PIL import Image
 import pillow_heif
-from moviepy.editor import VideoFileClip
+from moviepy.video.io.VideoFileClip import VideoFileClip  # Updated import for Render compatibility
 
 main = Blueprint("main", __name__)
 
@@ -13,6 +13,7 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "mp4",
 
 DESCRIPTION_FILE = "descriptions.json"
 ALBUM_FILE = "albums.json"
+COMMENTS_FILE = "comments.json"  # Added for commenting feature
 THUMB_FOLDER = os.path.join("static", "thumbnails")
 
 os.makedirs(THUMB_FOLDER, exist_ok=True)
@@ -44,6 +45,7 @@ def index():
 
     descriptions = load_json(DESCRIPTION_FILE)
     albums = load_json(ALBUM_FILE)
+    comments = load_json(COMMENTS_FILE)  # Load comments to pass to template if needed
 
     image_files = os.listdir(upload_folder)
     image_files.sort(key=lambda x: os.path.getmtime(os.path.join(upload_folder, x)), reverse=True)
@@ -56,7 +58,8 @@ def index():
             "description": descriptions.get(file, ""),
             "album": albums.get(file, ""),
             "type": "video" if ext in {"mp4", "mov", "avi", "mkv"} else "image",
-            "thumb": f"thumbnails/{file.rsplit('.', 1)[0]}.jpg" if ext in {"mp4", "mov", "avi", "mkv"} else None
+            "thumb": f"thumbnails/{file.rsplit('.', 1)[0]}.jpg" if ext in {"mp4", "mov", "avi", "mkv"} else None,
+            "comments": comments.get(file, [])  # Include comments for this file if any
         }
         images.append(image_data)
 
@@ -69,6 +72,7 @@ def upload():
         album = request.form.get("album")
         descriptions = load_json(DESCRIPTION_FILE)
         albums = load_json(ALBUM_FILE)
+        comments = load_json(COMMENTS_FILE)
 
         for file in files:
             if file and allowed_file(file.filename):
@@ -91,7 +95,7 @@ def upload():
                 else:
                     file.save(save_path)
 
-                # Video thumbnail
+                # Generate video thumbnail if applicable
                 if ext in {"mp4", "mov", "avi", "mkv"}:
                     thumb_path = os.path.join(THUMB_FOLDER, f"{filename.rsplit('.', 1)[0]}.jpg")
                     try:
@@ -99,14 +103,16 @@ def upload():
                     except Exception as e:
                         flash(f"Thumbnail generation failed: {e}")
 
-                # Save album info
+                # Save album info if provided
                 if album:
                     albums[filename] = album
 
                 descriptions[filename] = ""
+                comments[filename] = []
 
         save_json(DESCRIPTION_FILE, descriptions)
         save_json(ALBUM_FILE, albums)
+        save_json(COMMENTS_FILE, comments)
         flash("Upload successful.")
         return redirect(url_for("main.index"))
 
@@ -120,11 +126,13 @@ def delete_image(filename):
 
     descriptions = load_json(DESCRIPTION_FILE)
     albums = load_json(ALBUM_FILE)
+    comments = load_json(COMMENTS_FILE)
 
     if os.path.exists(file_path):
         os.remove(file_path)
         descriptions.pop(filename, None)
         albums.pop(filename, None)
+        comments.pop(filename, None)
         if os.path.exists(thumb_path):
             os.remove(thumb_path)
         flash(f"{filename} deleted.")
@@ -133,6 +141,7 @@ def delete_image(filename):
 
     save_json(DESCRIPTION_FILE, descriptions)
     save_json(ALBUM_FILE, albums)
+    save_json(COMMENTS_FILE, comments)
     return redirect(url_for("main.index"))
 
 @main.route("/download/<filename>")
@@ -147,4 +156,18 @@ def update_description(filename):
     descriptions[filename] = new_description
     save_json(DESCRIPTION_FILE, descriptions)
     flash("Description updated.")
+    return redirect(url_for("main.index"))
+
+@main.route("/add_comment/<filename>", methods=["POST"])
+def add_comment(filename):
+    comments = load_json(COMMENTS_FILE)
+    new_comment = request.form.get("comment", "").strip()
+    if new_comment:
+        if filename not in comments:
+            comments[filename] = []
+        comments[filename].append(new_comment)
+        save_json(COMMENTS_FILE, comments)
+        flash("Comment added.")
+    else:
+        flash("Empty comment not added.")
     return redirect(url_for("main.index"))

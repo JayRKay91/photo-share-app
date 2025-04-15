@@ -34,24 +34,26 @@ def save_json(filepath, data):
 def generate_video_thumbnail(video_path, thumb_path):
     """
     Generates a video thumbnail by:
-    - Extracting a frame at half the video’s duration (or 0.1 sec for very short videos)
-    - Converting the frame to a PIL image
-    - Converting to RGB if needed
-    - Resizing the image to a width of 320px (maintaining aspect ratio)
-    - Saving the image as a JPEG thumbnail at thumb_path
+      - Extracting a frame at half the video's duration (or 0.1 sec for very short videos)
+      - Converting the frame to a PIL image
+      - Converting to RGB if needed
+      - Resizing the image to a width of 320px (maintaining aspect ratio) using Resampling.LANCZOS
+      - Saving the image as a JPEG thumbnail at thumb_path
     """
     clip = VideoFileClip(video_path)
     timestamp = clip.duration / 2 if clip.duration > 1 else 0.1
     frame = clip.get_frame(timestamp)
     image = Image.fromarray(frame)
-    # Convert to RGB if not already
     if image.mode != "RGB":
         image = image.convert("RGB")
-    # Resize the image to a thumbnail of width 320px
+    
+    # Resize the image to a thumbnail of width 320px while maintaining the aspect ratio
     thumb_width = 320
     wpercent = thumb_width / float(image.size[0])
     thumb_height = int(float(image.size[1]) * wpercent)
-    image = image.resize((thumb_width, thumb_height), Image.ANTIALIAS)
+    # Use the updated Resampling.LANCZOS for high-quality downsampling
+    image = image.resize((thumb_width, thumb_height), Image.Resampling.LANCZOS)
+    
     image.save(thumb_path, format="JPEG")
     clip.close()
 

@@ -21,6 +21,15 @@
         .action-buttons {
             margin-top: 10px;
         }
+        /* Style for file name display */
+        .filename {
+            max-width: 250px;         /* Limit width */
+            white-space: nowrap;      /* Prevent wrapping */
+            overflow: hidden;         /* Hide overflow text */
+            text-overflow: ellipsis;  /* Add ellipsis when truncated */
+            margin: 5px auto;
+            font-size: 0.9em;         /* Slightly smaller font */
+        }
         /* Preview overlay styling */
         #preview {
             display: none;
@@ -50,11 +59,9 @@
     <script>
         function openPreview(src, isVideo = false) {
             const preview = document.getElementById('preview');
-            // Generate media content dynamically based on type.
             let content = isVideo 
                 ? `<video controls autoplay src="${src}" style="max-width: 100%; height: auto;"></video>` 
                 : `<img src="${src}" style="max-width: 100%; height: auto;" />`;
-            // Append a dedicated close button.
             content += `<button class="close-btn" onclick="closePreview()">Close</button>`;
             preview.innerHTML = content;
             preview.style.display = 'block';
@@ -66,7 +73,7 @@
             preview.style.display = 'none';
         }
 
-        // Add keyboard listener for the Escape key.
+        // Add keyboard listener for Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closePreview();
@@ -96,7 +103,7 @@
             {% else %}
                 <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" onclick="openPreview(this.src)" alt="{{ image.filename }}">
             {% endif %}
-            <p><strong>{{ image.filename }}</strong></p>
+            <p class="filename">{{ image.filename }}</p>
             {% if image.album %}<p>📁 Album: {{ image.album }}</p>{% endif %}
             <form action="{{ url_for('main.update_description', filename=image.filename) }}" method="POST">
                 <textarea name="description" rows="2" cols="25" placeholder="Add a description...">{{ image.description }}</textarea>
@@ -117,7 +124,6 @@
         {% endfor %}
     </div>
 
-    <!-- Preview overlay (clicking outside the media won't close it now) -->
     <div id="preview"></div>
 </body>
 </html>

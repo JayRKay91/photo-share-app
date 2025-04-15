@@ -13,7 +13,7 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "mp4",
 
 DESCRIPTION_FILE = "descriptions.json"
 ALBUM_FILE = "albums.json"
-COMMENTS_FILE = "comments.json"  # Added for commenting feature
+COMMENTS_FILE = "comments.json"  # For commenting feature
 THUMB_FOLDER = os.path.join("static", "thumbnails")
 
 os.makedirs(THUMB_FOLDER, exist_ok=True)
@@ -33,7 +33,9 @@ def save_json(filepath, data):
 
 def generate_video_thumbnail(video_path, thumb_path):
     clip = VideoFileClip(video_path)
-    frame = clip.get_frame(1)
+    # Use a frame at half the video's duration (or 0.1 sec for very short videos)
+    timestamp = clip.duration / 2 if clip.duration > 1 else 0.1
+    frame = clip.get_frame(timestamp)
     image = Image.fromarray(frame)
     image.save(thumb_path, format="JPEG")
     clip.close()
@@ -45,7 +47,7 @@ def index():
 
     descriptions = load_json(DESCRIPTION_FILE)
     albums = load_json(ALBUM_FILE)
-    comments = load_json(COMMENTS_FILE)  # Load comments to pass to template if needed
+    comments = load_json(COMMENTS_FILE)  # Load comments for each file if available
 
     image_files = os.listdir(upload_folder)
     image_files.sort(key=lambda x: os.path.getmtime(os.path.join(upload_folder, x)), reverse=True)
@@ -59,7 +61,7 @@ def index():
             "album": albums.get(file, ""),
             "type": "video" if ext in {"mp4", "mov", "avi", "mkv"} else "image",
             "thumb": f"thumbnails/{file.rsplit('.', 1)[0]}.jpg" if ext in {"mp4", "mov", "avi", "mkv"} else None,
-            "comments": comments.get(file, [])  # Include comments for this file if any
+            "comments": comments.get(file, [])
         }
         images.append(image_data)
 
@@ -103,7 +105,6 @@ def upload():
                     except Exception as e:
                         flash(f"Thumbnail generation failed: {e}")
 
-                # Save album info if provided
                 if album:
                     albums[filename] = album
 

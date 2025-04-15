@@ -40,8 +40,11 @@
             height: 100%;
             background-color: rgba(0,0,0,0.8);
             z-index: 9999;
-            text-align: center;
-            padding-top: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
         }
         /* Close button styling */
         #preview .close-btn {
@@ -55,16 +58,27 @@
             cursor: pointer;
             border-radius: 4px;
         }
+        /* New class to constrain preview image/video size */
+        .preview-content {
+            max-width: 90vw;
+            max-height: 90vh;
+            width: auto;
+            height: auto;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
     </style>
     <script>
         function openPreview(src, isVideo = false) {
             const preview = document.getElementById('preview');
-            let content = isVideo 
-                ? `<video controls autoplay src="${src}" style="max-width: 100%; height: auto;"></video>` 
-                : `<img src="${src}" style="max-width: 100%; height: auto;" />`;
+            let content;
+            if (isVideo) {
+                content = `<video controls autoplay src="${src}" class="preview-content"></video>`;
+            } else {
+                content = `<img src="${src}" class="preview-content" />`;
+            }
             content += `<button class="close-btn" onclick="closePreview()">Close</button>`;
             preview.innerHTML = content;
-            preview.style.display = 'block';
+            preview.style.display = 'flex';
         }
 
         function closePreview() {
@@ -73,7 +87,7 @@
             preview.style.display = 'none';
         }
 
-        // Add keyboard listener for Escape key
+        // Add keyboard listener for Escape key to close preview
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closePreview();
